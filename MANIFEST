@@ -4,3 +4,4 @@ Makefile.PL
 README
 lib/File/Flock.pm
 t/flock.t
+META.yml                                 Module meta-data (added by MakeMaker)

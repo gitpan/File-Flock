@@ -8,17 +8,13 @@ require Exporter;
 
 use Carp;
 
-#
-# It would be nice if I could use fcntl.ph and
-# errno.ph, but alas, that isn't safe.
-#
 use POSIX qw(EAGAIN EACCES EWOULDBLOCK ENOENT EEXIST O_EXCL O_CREAT O_RDWR); 
 use Fcntl qw(LOCK_SH LOCK_EX LOCK_NB LOCK_UN);
 
 use vars qw($VERSION $debug $av0debug);
 
 BEGIN	{
-	$VERSION = 101.06_05_01;
+	$VERSION = 104.11_19_01;
 	$debug = 0;
 	$av0debug = 0;
 }
@@ -171,7 +167,8 @@ sub unlock
 	my $unlocked = 0;
 
 
-	if ($created and -s $file == 0) {
+	my $size = -s $file;
+	if ($created && defined($size) && $size == 0) {
 		if ($shared{$file}) {
 			$unlocked = 
 				&background_remove($lockHandle{$file}, $file);
@@ -318,9 +315,10 @@ Locks can be created by new'ing a B<File::Flock> object.  Such locks
 are automatically removed when the object goes out of scope.  The
 B<unlock()> method may also be used.
 
-B<lock_rename()> is used to tell File::Flock when a file has been renamed
-(and thus the locking data that is stored based on the filename should
-be moved to a new name).
+B<lock_rename()> is used to tell File::Flock when a file has been
+renamed (and thus the internal locking data that is stored based
+on the filename should be moved to a new name).  B<unlock()> the
+new name rather than the original name.
 
 =head1 AUTHOR
 

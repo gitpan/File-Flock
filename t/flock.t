@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl -w -I.
+#!/usr/bin/perl5.00502 -w -I.
 
 $counter = "/tmp/flt1.$$";
 $lock    = "/tmp/flt2.$$";

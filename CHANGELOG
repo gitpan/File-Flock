@@ -1,4 +1,8 @@
 
++ 2004/11/19
+
+Bugfix in &unlock for if the lock file has been removed.
+
 Bugfix by Vadim O. Ustiansky <ustiansk@sai.msu.ru>.
 
 + 2001/06/05
