@@ -1,4 +1,10 @@
 
++ 1998/12/01
+
+More fixes for Solaris.  
+
+Modified the unlock() function so that it can be called as a reference.
+
 + 1998/11/30
 
 Fixed the object-style interface.  

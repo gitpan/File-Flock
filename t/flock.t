@@ -17,7 +17,7 @@ $children = 6;
 $count = 120;
 die unless $count % 2 == 0;
 die unless $count % 3 == 0;
-print "1..".($count*1.5+$children*2+4)."\n";
+print "1..".($count*1.5+$children*2+5)."\n";
 
 my $child = 0;
 my $i;
@@ -132,6 +132,8 @@ for(;;) {
 if ($parent) {
 	my $l = new File::Flock $lock3;
 	$c = &read_file($counter);
+	if ($l) { print "ok $c\n" } else {print "not ok $c\n"}
+	$c++;
 	unlink($counter);
 	unlink($lock4);
 	unlink($lock);
@@ -146,6 +148,7 @@ if ($parent) {
 		if ($status) { $x .= "not ok $c\n";} else {$x .= "ok $c\n"}
 		$c++;
 	}
+	$l->unlock();
 	print $x;
 } else {
 	unlock($lock3);

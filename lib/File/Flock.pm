@@ -1,4 +1,4 @@
-# Copyright (C) 1996, David Muir Sharnoff
+# Copyright (C) 1996, 1998 David Muir Sharnoff
 
 package File::Flock;
 
@@ -12,16 +12,13 @@ use Carp;
 # It would be nice if I could use fcntl.ph and
 # errno.ph, but alas, that isn't safe.
 #
-use POSIX qw(EAGAIN ENOENT EEXIST O_EXCL O_CREAT O_RDWR O_WRONLY); 
-sub LOCK_SH {1;}
-sub LOCK_EX {2;}
-sub LOCK_NB {4;}
-sub LOCK_UN {8;}
+use POSIX qw(EAGAIN ENOENT EEXIST O_EXCL O_CREAT O_RDWR); 
+use Fcntl qw(LOCK_SH LOCK_EX LOCK_NB LOCK_UN);
 
 use vars qw($VERSION $debug);
 
 BEGIN	{
-	$VERSION = 98.113001;
+	$VERSION = 98.1201_01;
 	$debug = 0;
 }
 
@@ -68,7 +65,7 @@ sub lock
 				croak "open $file: $!";
 			}
 		} else {
-			unless (sysopen($f, $file, O_CREAT|O_EXCL|O_WRONLY)) {
+			unless (sysopen($f, $file, O_CREAT|O_EXCL|O_RDWR)) {
 				redo OPEN if $! == EEXIST;
 				croak "open >$file: $!";
 			}
@@ -85,8 +82,8 @@ sub lock
 
 	my $flags;
 
-	$flags = $shared ? &LOCK_SH : &LOCK_EX;
-	$flags |= &LOCK_NB
+	$flags = $shared ? LOCK_SH : LOCK_EX;
+	$flags |= LOCK_NB
 		if $nonblocking;
 	
 	my $r = flock($f, $flags);
@@ -100,7 +97,7 @@ sub lock
 		my $ifile = (stat($file))[1];
 		my $ihandle;
 		eval "\$ihandle = (stat($f))[1]";
-		die $@ if $@;
+		croak $@ if $@;
 
 		return 1 if defined $ifile 
 			and defined $ihandle 
@@ -158,6 +155,11 @@ sub unlock
 {
 	my ($file) = @_;
 
+	if (ref $file eq 'File::Flock') {
+		bless $file, 'UNIVERSAL'; # avoid destructor later
+		$file = $$file;
+	}
+
 	croak "no lock on $file" unless exists $locks{$file};
 	my $created = $locks{$file};
 	my $unlocked = 0;
@@ -184,7 +186,7 @@ sub unlock
 	return 0 unless defined $f;
 
 	print " $$) " if $debug;
-	$unlocked or flock($f, &LOCK_UN)
+	$unlocked or flock($f, LOCK_UN)
 		or croak "flock $file UN: $!";
 
 	close($f);
@@ -270,11 +272,17 @@ __DATA__
 
  unlock($filename);
 
+ my $lock = new File::Flock '/somefile';
+
 =head1 DESCRIPTION
 
 Lock files using the flock() call.  If the file to be locked does not
 exist, then the file is created.  If the file was created then it will
 be removed when it is unlocked assuming it's still an empty file.
+
+Locks can be created by new'ing a B<File::Flock> object.  Such locks
+are automatically removed when the object goes out of scope.  The
+B<unlock()> method may also be used.
 
 =head1 AUTHOR
 
