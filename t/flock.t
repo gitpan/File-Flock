@@ -43,6 +43,9 @@ while (($c = &read_file($counter)) < $count) {
 		lock($lock, 0, 1) || next;
 	}
 	$c = &read_file($counter);
+	if ($c == $count/3) {
+		exit(0) if fork() == 0;
+	}
 	if ($c < $count) {
 		print "ok $c\n";
 		$c++;

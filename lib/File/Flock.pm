@@ -7,7 +7,7 @@ require Exporter;
 @EXPORT = qw(lock unlock);
 
 use Carp;
-use FileHandle;
+#use FileHandle;
 
 #
 # It would be nice if I could use fcntl.ph and
@@ -19,19 +19,31 @@ sub LOCK_EX {2;}
 sub LOCK_NB {4;}
 sub LOCK_UN {8;}
 
-use vars qw($VERSION %locks %lockHandle %shared $debug);
+use vars qw($VERSION $debug);
 
 BEGIN	{
-	$VERSION = 96.042302;
+	$VERSION = 96.111802;
 	$debug = 0;
 }
 
 use strict;
+no strict qw(refs);
+
+my %locks;
+my %lockHandle;
+my %shared;
+my %pid;
+
+my $gensym = "sym0000";
 
 sub lock
 {
 	my ($file, $shared, $nonblocking) = @_;
-	my $f = new FileHandle;
+	#my $f = new FileHandle;
+
+	#$gensym++;
+	my $f = "File::Flock::$gensym";
+
 	my $created = 0;
 	my $previous = exists $locks{$file};
 
@@ -39,14 +51,16 @@ sub lock
 	OPEN:
 	for(;;) {
 		if (-e $file) {
-			unless ($f->open($file, O_RDONLY)) {
+# 			unless ($f->open($file, O_RDONLY)) {
+			unless (sysopen($f, $file, O_RDONLY)) {
 				redo OPEN if $! == ENOENT;
-				croak "open $f: $!";
+				croak "open $file: $!";
 			}
 		} else {
-			unless ($f->open($file, O_CREAT|O_EXCL|O_WRONLY)) {
+# 			unless ($f->open($file, O_CREAT|O_EXCL|O_WRONLY)) {
+			unless (sysopen($f, $file, O_CREAT|O_EXCL|O_WRONLY)) {
 				redo OPEN if $! == EEXIST;
-				croak "open >$f: $!";
+				croak "open >$file: $!";
 			}
 			print " {$$ " if $debug;
 			$created = 1;
@@ -55,6 +69,7 @@ sub lock
 	}
 	$locks{$file} = $created || $locks{$file} || 0;
 	$shared{$file} = $shared;
+	$pid{$file} = $$;
 	
 	$lockHandle{$file} = $f;
 
@@ -73,15 +88,21 @@ sub lock
 		# removed on us!
 
 		my $ifile = (stat($file))[1];
-		my $ihandle = (stat($f))[1];
+		#my $ihandle = (stat($f))[1];
+		eval "\$File::Flock::ihandle = (stat($f))[1]";
+		die $@ if $@;
+
+		#return 1 if defined $ifile 
+			#and defined $ihandle 
+			#and $ifile == $handle;
 
 		return 1 if defined $ifile 
-			and defined $ihandle 
-			and $ifile == $ihandle;
+			and defined $File::Flock::ihandle 
+			and $ifile == $File::Flock::ihandle;
 
 		# oh well, try again
 		flock($f, LOCK_UN);
-		$f->close();
+		close($f);
 		return lock($file);
 	}
 
@@ -119,10 +140,13 @@ sub background_remove
 		my $ppid = fork;
 		croak "cannot fork" unless defined $ppid;
 		my $pppid = $$;
+		my $b0 = $0;
+		$0 = "$b0: waiting for child ($ppid) to fork()";
 		unless ($ppid) {
 			my $pid = fork;
 			croak "cannot fork" unless defined $pid;
 			unless ($pid) {
+				$0 = "$b0: unlocking $f";
 				flock($f, LOCK_EX);
 				unlink($file)
 					if -s $file == 0;
@@ -163,16 +187,19 @@ sub unlock
 	flock($f, &LOCK_UN)
 		or croak "flock $f UN: $!";
 
-	$f->close();
+	close($f);
 	return 1;
 }
 
 END {
 	my $f;
 	for $f (keys %locks) {
-		&unlock($f);
+		&unlock($f)
+			if $pid{$f} == $$;
 	}
 }
+
+1;
 
 __DATA__
 
