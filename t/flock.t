@@ -1,9 +1,8 @@
-#!/usr/local/bin/perl -w
-
-unshift(@INC, ".");
+#!/usr/local/bin/perl -w -I.
 
 $counter = "/tmp/flt1.$$";
 $lock    = "/tmp/flt2.$$";
+$lock2   = "/tmp/flt3.$$";
 
 use File::Flock;
 use Carp;
@@ -11,15 +10,18 @@ use FileHandle;
 
 STDOUT->autoflush(1);
 
-$children = 8;
-$count = 200;
-print "1..".($count+$children*2+2)."\n";
+$children = 6;
+$count = 120;
+die unless $count % 2 == 0;
+die unless $count % 3 == 0;
+print "1..".($count+$children*2+3)."\n";
 
+my $child = 0;
 my $i;
 for $i (1..$children) {
 	$p = fork();
 	croak unless defined $p;
-	$parent = $p;
+	$parent = $p or $child = $i;
 	last unless $parent;
 }
 
@@ -35,6 +37,8 @@ if ($parent) {
 	}
 }
 
+lock($lock2, 'shared');
+
 my $c;
 while (($c = &read_file($counter)) < $count) {
 	if ($c < $count*.25 || $c > $count*.75) {
@@ -43,21 +47,35 @@ while (($c = &read_file($counter)) < $count) {
 		lock($lock, 0, 1) || next;
 	}
 	$c = &read_file($counter);
-	if ($c == $count/3) {
-		exit(0) if fork() == 0;
+
+	# make sure each child increments it at least once.
+	if ($c < $children+2 && $c != $child+2) {
+		unlock($lock);
+		next;
 	}
+
 	if ($c < $count) {
 		print "ok $c\n";
 		$c++;
 		&overwrite_file($counter, "$c");
 	}
+
+	# one of the children will exit (and thus need to clean up)
+	if ($c == $count/3) {
+		exit(0) if fork() == 0;
+	}
+
+	# deal with a missing lock file
 	if ($c == $count/2) {
 		unlink($lock)
 			or croak "unlink $lock: $!";
 	}
+
+	# make sure the lock file doesn't get deleted
 	if ($c == int($count*.9)) {
 		&overwrite_file($lock, "keepme");
 	}
+
 	unlock($lock);
 }
 
@@ -78,7 +96,10 @@ if ($c == $count+$children+1) {
 	$c++;
 }
 
+unlock($lock2);
+
 if ($parent) {
+	lock($lock2);
 	$x = '';
 	$c = $count+$children+3;
 	for (1..$children) {
@@ -88,7 +109,12 @@ if ($parent) {
 		$c++;
 	}
 	print $x;
+	unlock($lock2);
+
+	if (-e $lock2) { print "not ok $c\n" } else {print "ok $c\n"}
+	$c++
 }
+
 exit(0);
 
 sub read_file

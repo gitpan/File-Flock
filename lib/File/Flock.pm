@@ -7,13 +7,12 @@ require Exporter;
 @EXPORT = qw(lock unlock);
 
 use Carp;
-#use FileHandle;
 
 #
 # It would be nice if I could use fcntl.ph and
 # errno.ph, but alas, that isn't safe.
 #
-use POSIX qw(EAGAIN ENOENT EEXIST O_EXCL O_CREAT O_RDONLY O_WRONLY); 
+use POSIX qw(EAGAIN ENOENT EEXIST O_EXCL O_CREAT O_RDWR O_WRONLY); 
 sub LOCK_SH {1;}
 sub LOCK_EX {2;}
 sub LOCK_NB {4;}
@@ -22,7 +21,7 @@ sub LOCK_UN {8;}
 use vars qw($VERSION $debug);
 
 BEGIN	{
-	$VERSION = 96.111802;
+	$VERSION = 98.112801;
 	$debug = 0;
 }
 
@@ -33,15 +32,28 @@ my %locks;
 my %lockHandle;
 my %shared;
 my %pid;
+my %rm;
 
 my $gensym = "sym0000";
+
+sub new
+{
+	my ($pkg, $file, $shared, $nonblocking) = @_;
+	lock($file, $shared, $nonblocking) || return undef;
+	return bless $pkg, \$file;
+}
+
+sub DELETE
+{
+	my ($this) = @_;
+	unlock $$this;
+}
 
 sub lock
 {
 	my ($file, $shared, $nonblocking) = @_;
-	#my $f = new FileHandle;
 
-	#$gensym++;
+	$gensym++;
 	my $f = "File::Flock::$gensym";
 
 	my $created = 0;
@@ -51,13 +63,11 @@ sub lock
 	OPEN:
 	for(;;) {
 		if (-e $file) {
-# 			unless ($f->open($file, O_RDONLY)) {
-			unless (sysopen($f, $file, O_RDONLY)) {
+			unless (sysopen($f, $file, O_RDWR)) {
 				redo OPEN if $! == ENOENT;
 				croak "open $file: $!";
 			}
 		} else {
-# 			unless ($f->open($file, O_CREAT|O_EXCL|O_WRONLY)) {
 			unless (sysopen($f, $file, O_CREAT|O_EXCL|O_WRONLY)) {
 				redo OPEN if $! == EEXIST;
 				croak "open >$file: $!";
@@ -88,17 +98,13 @@ sub lock
 		# removed on us!
 
 		my $ifile = (stat($file))[1];
-		#my $ihandle = (stat($f))[1];
-		eval "\$File::Flock::ihandle = (stat($f))[1]";
+		my $ihandle;
+		eval "\$ihandle = (stat($f))[1]";
 		die $@ if $@;
 
-		#return 1 if defined $ifile 
-			#and defined $ihandle 
-			#and $ifile == $handle;
-
 		return 1 if defined $ifile 
-			and defined $File::Flock::ihandle 
-			and $ifile == $File::Flock::ihandle;
+			and defined $ihandle 
+			and $ifile == $ihandle;
 
 		# oh well, try again
 		flock($f, LOCK_UN);
@@ -112,50 +118,37 @@ sub lock
 			delete $locks{$file};
 			delete $lockHandle{$file};
 			delete $shared{$file};
+			delete $pid{$file};
 		}
 		if ($created) {
 			# oops, a bad thing just happened.  
 			# We don't want to block, but we made the file.
-			# so we're going to have to wait around for
-			# it.
 			&background_remove($f, $file);
 		}
+		close($f);
 		return 0;
 	}
 	croak "flock $f $flags: $!";
 }
 
+#
+# get a lock on a file and remove it if it's empty.  This is to
+# remove files that were created just so that they could be locked.
+#
+# To do this without blocking, defer any files that are locked to the
+# the END block.
+#
 sub background_remove
 {
 	my ($f, $file) = @_;
-	#
-	# first try to grab it, if that doesn't work, fork off a 
-	# child to handle it in the background.
-	#
+
 	if (flock($f, LOCK_EX|LOCK_NB)) {
 		unlink($file)
 			if -s $file == 0;
 		flock($f, LOCK_UN);
 	} else {
-		my $ppid = fork;
-		croak "cannot fork" unless defined $ppid;
-		my $pppid = $$;
-		my $b0 = $0;
-		$0 = "$b0: waiting for child ($ppid) to fork()";
-		unless ($ppid) {
-			my $pid = fork;
-			croak "cannot fork" unless defined $pid;
-			unless ($pid) {
-				$0 = "$b0: unlocking $f";
-				flock($f, LOCK_EX);
-				unlink($file)
-					if -s $file == 0;
-				print " $pppid] $pppid)" if $debug;
-				flock($f, LOCK_UN);
-			}
-			exit(0);
-		}
-		waitpid($ppid, 0);
+		$rm{$file} = 1
+			unless exists $rm{$file};
 	}
 }
 
@@ -176,6 +169,7 @@ sub unlock
 		}
 	}
 	delete $locks{$file};
+	delete $pid{$file};
 
 	my $f = $lockHandle{$file};
 
@@ -185,17 +179,66 @@ sub unlock
 
 	print " $$) " if $debug;
 	flock($f, &LOCK_UN)
-		or croak "flock $f UN: $!";
+		or croak "flock $file UN: $!";
 
 	close($f);
 	return 1;
 }
 
+#
+# Unlock any files that are still locked and remove any files
+# that were created just so that they could be locked.
+#
 END {
 	my $f;
 	for $f (keys %locks) {
 		&unlock($f)
 			if $pid{$f} == $$;
+	}
+
+	my %bgrm;
+	for my $file (keys %rm) {
+		$gensym++;
+		my $f = "File::Flock::$gensym";
+		if (sysopen($f, $file, O_RDWR)) {
+			if (flock($f, LOCK_EX|LOCK_NB)) {
+				unlink($file)
+					if -s $file == 0;
+				flock($f, LOCK_UN);
+			} else {
+				$bgrm{$file} = 1;
+			}
+			close($f);
+		}
+	}
+	if (%bgrm) {
+		my $ppid = fork;
+		croak "cannot fork" unless defined $ppid;
+		my $pppid = $$;
+		my $b0 = $0;
+		$0 = "$b0: waiting for child ($ppid) to fork()";
+		unless ($ppid) {
+			my $pid = fork;
+			croak "cannot fork" unless defined $pid;
+			unless ($pid) {
+				for my $file (keys %bgrm) {
+					$gensym++;
+					my $f = "File::Flock::$gensym";
+					if (sysopen($f, $file, O_RDWR)) {
+						if (flock($f, LOCK_EX)) {
+							unlink($file)
+								if -s $file == 0;
+							flock($f, LOCK_UN);
+						}
+						close($f);
+					}
+				}
+				print " $pppid] $pppid)" if $debug;
+			}
+			kill(9, $$); # exit w/o END or anything else
+		}
+		waitpid($ppid, 0);
+		kill(9, $$); # exit w/o END or anything else
 	}
 }
 

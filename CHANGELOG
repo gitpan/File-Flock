@@ -1,0 +1,11 @@
+
++ 1998/11/26	
+
+Chaged O_RDONLY to O_RDWR for all file opens because Solaris won't let
+you get an exclusive lock on a read-only file.  Crazy!  Change suggested
+by Lupe Christoph <lupe@alanya.m.isar.de>.  Thanks!
+
+Rewrote the handling of the removal of files created just so that
+they could be locked.  Also tried to make sure that now file descriptors
+could get leaked.
+
