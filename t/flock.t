@@ -6,6 +6,8 @@ $lock2   = "/tmp/flt3.$$";
 $lock3   = "/tmp/flt4.$$";
 $lock4   = "/tmp/flt5.$$";
 $lock5   = "/tmp/flt6.$$";
+$lock6   = "/tmp/flt7.$$";
+$lock7   = "/tmp/flt8.$$";
 
 use File::Flock;
 use Carp;
@@ -17,7 +19,7 @@ $children = 6;
 $count = 120;
 die unless $count % 2 == 0;
 die unless $count % 3 == 0;
-print "1..".($count*1.5+$children*2+5)."\n";
+print "1..".($count*1.5+$children*2+7)."\n";
 
 my $child = 0;
 my $i;
@@ -37,8 +39,10 @@ if ($parent) {
 	&write_file($lock4, "");
 	lock($lock4);
 } else {
+	my $e;
 	while (! -e $lock) {
 		# spin
+		die if $e++ > 1000000;
 	}
 	lock($lock3, 'shared');
 }
@@ -46,7 +50,9 @@ if ($parent) {
 lock($lock2, 'shared');
 
 my $c;
+my $ee;
 while (($c = &read_file($counter)) < $count) {
+	die if $ee++ > 10000000;
 	if ($c < $count*.25 || $c > $count*.75) {
 		lock($lock);
 	} else {
@@ -113,6 +119,7 @@ if ($parent) {
 	unlock($lock4);
 }
 
+
 # okay, now that that's all done, lets try some locks using
 # the object interface...
 
@@ -129,6 +136,51 @@ for(;;) {
 	$c++;
 	&overwrite_file($counter, "$c");
 }
+#
+# now let's make sure nonblocking works
+#
+if ($parent) {
+	my $e;
+	lock $lock6;
+	for(;;) {
+		lock($lock7, undef, 'nonblocking')
+			or last;
+		unlock($lock7);
+		die if $e++ > 1000;
+		sleep(1);
+	}
+	unlock $lock6;
+	lock $counter;
+	$c = &read_file($counter);
+	print "ok $c\n";
+	$c++;
+	&overwrite_file($counter, "$c");
+	unlock $counter;
+
+} elsif ($child == 1) {
+	my $e;
+	for(;;) {
+		lock($lock6, undef, 'nonblocking')
+			or last;
+		unlock($lock6);
+		die if $e++ > 1000;
+		sleep(1);
+	}
+	lock $lock7;
+	lock $lock6;
+	lock $counter;
+	$c = &read_file($counter);
+	print "ok $c\n";
+	$c++;
+	&overwrite_file($counter, "$c");
+	unlock $counter;
+	unlock $lock7;
+	unlock $lock6;
+} 
+
+#
+# Shut everything down
+#
 if ($parent) {
 	my $l = new File::Flock $lock3;
 	$c = &read_file($counter);

@@ -1,3 +1,10 @@
+
+Added lock_rename to the EXPORT list.
+
++ 2000/09/25
+
+Added tests to make sure 'nonblocking' works
+
 + 1999/12/17
 
 Added the lock_rename() function.

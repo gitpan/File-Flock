@@ -4,7 +4,7 @@ package File::Flock;
 
 require Exporter;
 @ISA = qw(Exporter);
-@EXPORT = qw(lock unlock);
+@EXPORT = qw(lock unlock lock_rename);
 
 use Carp;
 
@@ -18,14 +18,14 @@ use Fcntl qw(LOCK_SH LOCK_EX LOCK_NB LOCK_UN);
 use vars qw($VERSION $debug);
 
 BEGIN	{
-	$VERSION = 99.12_17_01;
+	$VERSION = 100.09_25_01;
 	$debug = 0;
 }
 
 use strict;
 no strict qw(refs);
 
-my %locks;
+my %locks;		# did we create the file?
 my %lockHandle;
 my %shared;
 my %pid;
