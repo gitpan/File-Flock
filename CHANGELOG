@@ -1,4 +1,12 @@
 
+Bugfix by Vadim O. Ustiansky <ustiansk@sai.msu.ru>.
+
++ 2001/06/05
+
+Added $av0debug variable to note locking attempts in $0
+
++ 2001/05/18
+
 Added lock_rename to the EXPORT list.
 
 + 2000/09/25

@@ -15,11 +15,12 @@ use Carp;
 use POSIX qw(EAGAIN EACCES EWOULDBLOCK ENOENT EEXIST O_EXCL O_CREAT O_RDWR); 
 use Fcntl qw(LOCK_SH LOCK_EX LOCK_NB LOCK_UN);
 
-use vars qw($VERSION $debug);
+use vars qw($VERSION $debug $av0debug);
 
 BEGIN	{
-	$VERSION = 100.09_25_01;
+	$VERSION = 101.06_05_01;
 	$debug = 0;
+	$av0debug = 0;
 }
 
 use strict;
@@ -69,7 +70,7 @@ sub lock
 				redo OPEN if $! == EEXIST;
 				croak "open >$file: $!";
 			}
-			print " {$$ " if $debug; # }
+			print STDERR " {$$ " if $debug; # }
 			$created = 1;
 		}
 		last;
@@ -86,9 +87,10 @@ sub lock
 	$flags |= LOCK_NB
 		if $nonblocking;
 	
+	local($0) = "$0 - locking $file" if $av0debug && ! $nonblocking;
 	my $r = flock($f, $flags);
 
-	print " ($$ " if $debug and $r;
+	print STDERR " ($$ " if $debug and $r;
 
 	if ($r) {
 		# let's check to make sure the file wasn't
@@ -106,7 +108,7 @@ sub lock
 		# oh well, try again
 		flock($f, LOCK_UN);
 		close($f);
-		return lock($file);
+		return File::Flock::lock($file);
 	}
 
 	return 1 if $r;
@@ -175,7 +177,7 @@ sub unlock
 				&background_remove($lockHandle{$file}, $file);
 		} else { 
 			# {
-			print " $$} " if $debug;
+			print STDERR " $$} " if $debug;
 			unlink($file) 
 				or croak "unlink $file: $!";
 		}
@@ -189,7 +191,7 @@ sub unlock
 
 	return 0 unless defined $f;
 
-	print " $$) " if $debug;
+	print STDERR " $$) " if $debug;
 	$unlocked or flock($f, LOCK_UN)
 		or croak "flock $file UN: $!";
 
@@ -271,7 +273,7 @@ END {
 						close($f);
 					}
 				}
-				print " $pppid] $pppid)" if $debug;
+				print STDERR " $pppid] $pppid)" if $debug;
 			}
 			kill(9, $$); # exit w/o END or anything else
 		}
