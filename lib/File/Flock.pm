@@ -18,7 +18,7 @@ use Fcntl qw(LOCK_SH LOCK_EX LOCK_NB LOCK_UN);
 use vars qw($VERSION $debug);
 
 BEGIN	{
-	$VERSION = 99.06_22_01;
+	$VERSION = 99.12_17_01;
 	$debug = 0;
 }
 
@@ -197,6 +197,32 @@ sub unlock
 	return 1;
 }
 
+sub lock_rename
+{
+	my ($oldfile, $newfile) = @_;
+
+	if (exists $locks{$newfile}) {
+		unlock $newfile;
+	}
+	delete $locks{$newfile};
+	delete $shared{$newfile};
+	delete $pid{$newfile};
+	delete $lockHandle{$newfile};
+	delete $rm{$newfile};
+
+	$locks{$newfile}	= $locks{$oldfile}	if exists $locks{$oldfile};
+	$shared{$newfile}	= $shared{$oldfile}	if exists $shared{$oldfile};
+	$pid{$newfile}		= $pid{$oldfile}	if exists $pid{$oldfile};
+	$lockHandle{$newfile}	= $lockHandle{$oldfile} if exists $lockHandle{$oldfile};
+	$rm{$newfile}		= $rm{$oldfile}		if exists $rm{$oldfile};
+
+	delete $locks{$oldfile};
+	delete $shared{$oldfile};
+	delete $pid{$oldfile};
+	delete $lockHandle{$oldfile};
+	delete $rm{$oldfile};
+}
+
 #
 # Unlock any files that are still locked and remove any files
 # that were created just so that they could be locked.
@@ -278,6 +304,8 @@ __DATA__
 
  my $lock = new File::Flock '/somefile';
 
+ lock_rename($oldfilename, $newfilename)
+
 =head1 DESCRIPTION
 
 Lock files using the flock() call.  If the file to be locked does not
@@ -287,6 +315,10 @@ be removed when it is unlocked assuming it's still an empty file.
 Locks can be created by new'ing a B<File::Flock> object.  Such locks
 are automatically removed when the object goes out of scope.  The
 B<unlock()> method may also be used.
+
+B<lock_rename()> is used to tell File::Flock when a file has been renamed
+(and thus the locking data that is stored based on the filename should
+be moved to a new name).
 
 =head1 AUTHOR
 
