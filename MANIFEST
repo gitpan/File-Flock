@@ -1,0 +1,5 @@
+MANIFEST
+Makefile.PL
+README
+lib/File/Flock.pm
+t/flock.t
