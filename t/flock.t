@@ -3,6 +3,9 @@
 $counter = "/tmp/flt1.$$";
 $lock    = "/tmp/flt2.$$";
 $lock2   = "/tmp/flt3.$$";
+$lock3   = "/tmp/flt4.$$";
+$lock4   = "/tmp/flt5.$$";
+$lock5   = "/tmp/flt6.$$";
 
 use File::Flock;
 use Carp;
@@ -14,7 +17,7 @@ $children = 6;
 $count = 120;
 die unless $count % 2 == 0;
 die unless $count % 3 == 0;
-print "1..".($count+$children*2+3)."\n";
+print "1..".($count*1.5+$children*2+4)."\n";
 
 my $child = 0;
 my $i;
@@ -31,10 +34,13 @@ if ($parent) {
 	print "ok 1\n";
 	&write_file($counter, "2");
 	&write_file($lock, "");
+	&write_file($lock4, "");
+	lock($lock4);
 } else {
 	while (! -e $lock) {
 		# spin
 	}
+	lock($lock3, 'shared');
 }
 
 lock($lock2, 'shared');
@@ -89,7 +95,6 @@ unlock($lock);
 if ($c == $count+$children+1) {
 	print "ok $c\n";
 	$c++;
-	unlink($counter);
 	if (&read_file($lock) eq 'keepme') 
 		{print "ok $c\n";} else {print "not ok $c\n"};
 	unlink($lock);
@@ -100,8 +105,41 @@ unlock($lock2);
 
 if ($parent) {
 	lock($lock2);
-	$x = '';
+	unlock($lock2);
+
 	$c = $count+$children+3;
+
+	&write_file($counter, $c);
+	unlock($lock4);
+}
+
+# okay, now that that's all done, lets try some locks using
+# the object interface...
+
+my $start = $c;
+
+for(;;) {
+	my $l = new File::Flock $lock4;
+
+	$c = &read_file($counter);
+
+	last if $c > $count/2+$start;
+
+	print "ok $c\n";
+	$c++;
+	&overwrite_file($counter, "$c");
+}
+if ($parent) {
+	my $l = new File::Flock $lock3;
+	$c = &read_file($counter);
+	unlink($counter);
+	unlink($lock4);
+	unlink($lock);
+	lock($lock5);
+	unlock($lock5);
+	if (-e $lock5) { print "not ok $c\n" } else {print "ok $c\n"}
+	$c++;
+	$x = '';
 	for (1..$children) {
 		wait();
 		$status = $? >> 8;
@@ -109,12 +147,9 @@ if ($parent) {
 		$c++;
 	}
 	print $x;
-	unlock($lock2);
-
-	if (-e $lock2) { print "not ok $c\n" } else {print "ok $c\n"}
-	$c++
+} else {
+	unlock($lock3);
 }
-
 exit(0);
 
 sub read_file
@@ -192,55 +227,3 @@ sub read_dir
 }
 
 1;
-
-__DATA__
-
-=head1 NAME
-
-	File::Slurp -- single call read & write file routines; read directories
-
-=head1 SYNOPSIS
-
-	use File::Slurp;
-
-	$all_of_it = read_file($filename);
-	@all_lines = read_file($filename);
-
-	write_file($filename, @contents)
-
-	overwrite_file($filename, @new_contnts);
-
-	append_file($filename, @additional_contents);
-
-	@files = read_dir($directory);
-
-=head1 DESCRIPTION
-
-These are quickie routines that are meant to save a couple of lines of
-code over and over again.  They do not do anything fancy.
- 
-read_file() does what you would expect.  If you are using its output
-in array context, then it returns an array of lines.  If you are calling
-it from scalar context, then returns the entire file in a single string.
-
-It croaks()s if it can't open the file.
-
-write_file() creates or overwrites files.
-
-append_file() appends to a file.
-
-overwrite_file() does an in-place update of an existing file or creates
-a new file if it didn't already exist.  Write_file will also replace a
-file.  The difference is that the first that that write_file() does is 
-to trucate the file whereas the last thing that overwrite_file() is to
-trucate the file.  Overwrite_file() should be used in situations where
-you have a file that always needs to have contents, even in the middle
-of an update.
-
-read_dir() returns all of the entries in a directory except for "."
-and "..".  It croaks if it cannot open the directory.
-
-=head1 AUTHOR
-
-David Muir Sharnoff <muir@idiom.com>
-

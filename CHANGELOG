@@ -1,4 +1,10 @@
 
++ 1998/11/30
+
+Fixed the object-style interface.  
+
+Attempt to fix a double-unlock bug that makes the Linux port unhappy
+
 + 1998/11/26	
 
 Chaged O_RDONLY to O_RDWR for all file opens because Solaris won't let

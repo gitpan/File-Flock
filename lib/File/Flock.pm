@@ -21,7 +21,7 @@ sub LOCK_UN {8;}
 use vars qw($VERSION $debug);
 
 BEGIN	{
-	$VERSION = 98.112801;
+	$VERSION = 98.113001;
 	$debug = 0;
 }
 
@@ -40,13 +40,13 @@ sub new
 {
 	my ($pkg, $file, $shared, $nonblocking) = @_;
 	lock($file, $shared, $nonblocking) || return undef;
-	return bless $pkg, \$file;
+	return bless \$file, $pkg;
 }
 
-sub DELETE
+sub DESTROY
 {
 	my ($this) = @_;
-	unlock $$this;
+	unlock($$this);
 }
 
 sub lock
@@ -72,7 +72,7 @@ sub lock
 				redo OPEN if $! == EEXIST;
 				croak "open >$file: $!";
 			}
-			print " {$$ " if $debug;
+			print " {$$ " if $debug; # }
 			$created = 1;
 		}
 		last;
@@ -146,9 +146,11 @@ sub background_remove
 		unlink($file)
 			if -s $file == 0;
 		flock($f, LOCK_UN);
+		return 1;
 	} else {
 		$rm{$file} = 1
 			unless exists $rm{$file};
+		return 0;
 	}
 }
 
@@ -158,11 +160,15 @@ sub unlock
 
 	croak "no lock on $file" unless exists $locks{$file};
 	my $created = $locks{$file};
+	my $unlocked = 0;
+
 
 	if ($created and -s $file == 0) {
 		if ($shared{$file}) {
-			&background_remove($lockHandle{$file}, $file);
-		} else {
+			$unlocked = 
+				&background_remove($lockHandle{$file}, $file);
+		} else { 
+			# {
 			print " $$} " if $debug;
 			unlink($file) 
 				or croak "unlink $file: $!";
@@ -178,7 +184,7 @@ sub unlock
 	return 0 unless defined $f;
 
 	print " $$) " if $debug;
-	flock($f, &LOCK_UN)
+	$unlocked or flock($f, &LOCK_UN)
 		or croak "flock $file UN: $!";
 
 	close($f);
