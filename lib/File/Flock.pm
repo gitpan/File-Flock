@@ -12,13 +12,13 @@ use Carp;
 # It would be nice if I could use fcntl.ph and
 # errno.ph, but alas, that isn't safe.
 #
-use POSIX qw(EAGAIN ENOENT EEXIST O_EXCL O_CREAT O_RDWR); 
+use POSIX qw(EAGAIN EACCES EWOULDBLOCK ENOENT EEXIST O_EXCL O_CREAT O_RDWR); 
 use Fcntl qw(LOCK_SH LOCK_EX LOCK_NB LOCK_UN);
 
 use vars qw($VERSION $debug);
 
 BEGIN	{
-	$VERSION = 98.1201_01;
+	$VERSION = 99.06_22_01;
 	$debug = 0;
 }
 
@@ -36,7 +36,7 @@ my $gensym = "sym0000";
 sub new
 {
 	my ($pkg, $file, $shared, $nonblocking) = @_;
-	lock($file, $shared, $nonblocking) || return undef;
+	&lock($file, $shared, $nonblocking) or return undef;
 	return bless \$file, $pkg;
 }
 
@@ -110,7 +110,11 @@ sub lock
 	}
 
 	return 1 if $r;
-	if ($nonblocking and $! == EAGAIN) {
+	if ($nonblocking and 
+		(($! == EAGAIN) 
+		or ($! == EACCES)
+		or ($! == EWOULDBLOCK))) 
+	{
 		if (! $previous) {
 			delete $locks{$file};
 			delete $lockHandle{$file};

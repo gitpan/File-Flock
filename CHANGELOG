@@ -1,3 +1,16 @@
++ 1999/06/22
+
+SunOS systems seem to fail with EWOULDBLOCK on locked files.
+
++ 1999/06/21
+
+It appears that on some systems (HP-UX) a blocking call to flock()
+can fail with EACCES instead of EAGAIN.
+
++ 1999/06/15
+
+Perl changes.  File::Flock must change to keep up.  A call to
+lock() had to be changed to &lock().  Why?
 
 + 1998/12/01
 
@@ -20,4 +33,5 @@ by Lupe Christoph <lupe@alanya.m.isar.de>.  Thanks!
 Rewrote the handling of the removal of files created just so that
 they could be locked.  Also tried to make sure that now file descriptors
 could get leaked.
+
 
