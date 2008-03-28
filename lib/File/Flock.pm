@@ -7,14 +7,14 @@ require Exporter;
 @EXPORT = qw(lock unlock lock_rename);
 
 use Carp;
-
 use POSIX qw(EAGAIN EACCES EWOULDBLOCK ENOENT EEXIST O_EXCL O_CREAT O_RDWR); 
 use Fcntl qw(LOCK_SH LOCK_EX LOCK_NB LOCK_UN);
+use IO::File;
 
 use vars qw($VERSION $debug $av0debug);
 
 BEGIN	{
-	$VERSION = 104.11_19_01;
+	$VERSION = 2008.01;
 	$debug = 0;
 	$av0debug = 0;
 }
@@ -27,8 +27,6 @@ my %lockHandle;
 my %shared;
 my %pid;
 my %rm;
-
-my $gensym = "sym0000";
 
 sub new
 {
@@ -47,8 +45,7 @@ sub lock
 {
 	my ($file, $shared, $nonblocking) = @_;
 
-	$gensym++;
-	my $f = "File::Flock::$gensym";
+	my $f = new IO::File;
 
 	my $created = 0;
 	my $previous = exists $locks{$file};
@@ -94,7 +91,7 @@ sub lock
 
 		my $ifile = (stat($file))[1];
 		my $ihandle;
-		eval "\$ihandle = (stat($f))[1]";
+		eval { $ihandle = (stat($f))[1] };
 		croak $@ if $@;
 
 		return 1 if defined $ifile 
@@ -235,8 +232,7 @@ END {
 
 	my %bgrm;
 	for my $file (keys %rm) {
-		$gensym++;
-		my $f = "File::Flock::$gensym";
+		my $f = new IO::File;
 		if (sysopen($f, $file, O_RDWR)) {
 			if (flock($f, LOCK_EX|LOCK_NB)) {
 				unlink($file)
@@ -259,8 +255,7 @@ END {
 			croak "cannot fork" unless defined $pid;
 			unless ($pid) {
 				for my $file (keys %bgrm) {
-					$gensym++;
-					my $f = "File::Flock::$gensym";
+					my $f = new IO::File;
 					if (sysopen($f, $file, O_RDWR)) {
 						if (flock($f, LOCK_EX)) {
 							unlink($file)
@@ -320,8 +315,13 @@ renamed (and thus the internal locking data that is stored based
 on the filename should be moved to a new name).  B<unlock()> the
 new name rather than the original name.
 
+=head1 LICENSE
+
+File::Flock may be used/modified/distibuted on the same terms
+as perl itself.  
+
 =head1 AUTHOR
 
-David Muir Sharnoff, <muir@idiom.com>
+David Muir Sharnoff <muir@idiom.org>
 
 

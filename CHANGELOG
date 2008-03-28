@@ -1,3 +1,10 @@
++ 2008/03/27 version 2008.01
+
+Joshua Kronengold, mneme at io dot com, sent in a patch
+to use IO::File instead of the $gensym hack.  Applied.
+
+Carl Fürstenber, azatoth at gmail dot com and others 
+requested that license terms be spelled out.  Done.
 
 + 2004/11/19
 
