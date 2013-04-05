@@ -1,4 +1,3 @@
-# Copyright (C) 1996, 1998 David Muir Sharnoff
 
 package File::Flock;
 
@@ -10,11 +9,12 @@ use Carp;
 use POSIX qw(EAGAIN EACCES EWOULDBLOCK ENOENT EEXIST O_EXCL O_CREAT O_RDWR); 
 use Fcntl qw(LOCK_SH LOCK_EX LOCK_NB LOCK_UN);
 use IO::File;
+use Data::Structure::Util qw(unbless);
 
 use vars qw($VERSION $debug $av0debug);
 
 BEGIN	{
-	$VERSION = 2008.01;
+	$VERSION = 2013.04;
 	$debug = 0;
 	$av0debug = 0;
 }
@@ -28,20 +28,19 @@ my %shared;
 my %pid;
 my %rm;
 
-sub new
-{
+sub new_flock {
 	my ($pkg, $file, $shared, $nonblocking) = @_;
-	&lock($file, $shared, $nonblocking) or return undef;
+	lock_flock($file, $shared, $nonblocking) or return undef;
 	return bless \$file, $pkg;
 }
 
 sub DESTROY
 {
 	my ($this) = @_;
-	unlock($$this);
+	unlock_flock($$this);
 }
 
-sub lock
+sub lock_flock
 {
 	my ($file, $shared, $nonblocking) = @_;
 
@@ -101,7 +100,7 @@ sub lock
 		# oh well, try again
 		flock($f, LOCK_UN);
 		close($f);
-		return File::Flock::lock($file);
+		return lock_flock($file);
 	}
 
 	return 1 if $r;
@@ -150,12 +149,12 @@ sub background_remove
 	}
 }
 
-sub unlock
+sub unlock_flock
 {
 	my ($file) = @_;
 
 	if (ref $file eq 'File::Flock') {
-		bless $file, 'UNIVERSAL'; # avoid destructor later
+		unbless $file; # avoid destructor later
 		$file = $$file;
 	}
 
@@ -193,12 +192,12 @@ sub unlock
 	return 1;
 }
 
-sub lock_rename
+sub lock_rename_flock
 {
 	my ($oldfile, $newfile) = @_;
 
 	if (exists $locks{$newfile}) {
-		unlock $newfile;
+		unlock_flock($newfile);
 	}
 	delete $locks{$newfile};
 	delete $shared{$newfile};
@@ -217,16 +216,20 @@ sub lock_rename
 	delete $pid{$oldfile};
 	delete $lockHandle{$oldfile};
 	delete $rm{$oldfile};
+
+	return 1;
 }
 
 #
 # Unlock any files that are still locked and remove any files
 # that were created just so that they could be locked.
 #
-END {
+
+sub final_cleanup_flock
+{
 	my $f;
 	for $f (keys %locks) {
-		&unlock($f)
+		unlock_flock($f)
 			if $pid{$f} == $$;
 	}
 
@@ -272,11 +275,39 @@ END {
 		waitpid($ppid, 0);
 		kill(9, $$); # exit w/o END or anything else
 	}
+
+	%locks = ();
+	%lockHandle = ();
+	%shared = ();
+	%pid = ();
+	%rm = ();
+	%bgrm = ();
+}
+
+END {
+	final_cleanup();
+}
+
+BEGIN {
+	if ($File::Flock::Forking::SubprocessEnabled) {
+		require File::Flock::Subprocess;
+		*new	        = *File::Flock::Subprocess::new;
+		*final_cleanup	= *File::Flock::Subprocess::final_cleanup;
+		*lock		= *File::Flock::Subprocess::lock;
+		*unlock		= *File::Flock::Subprocess::unlock;
+		*lock_rename	= *File::Flock::Subprocess::lock_rename;
+	} else {
+		*new	        = *new_flock;
+		*final_cleanup	= *final_cleanup_flock;
+		*lock		= *lock_flock;
+		*unlock		= *unlock_flock;
+		*lock_rename	= *lock_rename_flock;
+	}
 }
 
 1;
 
-__DATA__
+__END__
 
 =head1 NAME
 
@@ -315,13 +346,23 @@ renamed (and thus the internal locking data that is stored based
 on the filename should be moved to a new name).  B<unlock()> the
 new name rather than the original name.
 
+Locks are released on process exit even if the process has fork()ed.
+Use POSIX::_exit() to prevent that behavior.
+
+=head1 SEE ALSO
+
+See L<File::Flock::Subprocess> for a variant that uses a subproess to hold
+the locks so that the locks survive when the parent process forks.
+See L<File::Flock::Forking> for a way to automatically choose between
+File::Flock and L<File::Flock::Subprocess>.
+
 =head1 LICENSE
 
-File::Flock may be used/modified/distibuted on the same terms
-as perl itself.  
+Copyright (C) 1996-2012 David Muir Sharnoff <cpan@dave.sharnoff.org>
+Copyright (C) 2013 Google, Inc.
+This module may be used/copied/etc on the same terms as Perl itself.
 
-=head1 AUTHOR
+=head1 PACKAGERS
 
-David Muir Sharnoff <muir@idiom.org>
-
+File::Flock is packaged for Fedora by Emmanuel Seyman <emmanuel.seyman@club-internet.fr>.
 

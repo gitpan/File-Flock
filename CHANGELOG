@@ -1,3 +1,12 @@
+
+Added File::Flock::Forking to auto-select between File::Flock and
+File::Flock::Subprocess.
+
+Added File::Flock::Subprocess for machines that don't propogate
+locks across fork().
+
+POD is now after __END__ instead of __DATA__.  Oops!
+
 + 2008/03/27 version 2008.01
 
 Joshua Kronengold, mneme at io dot com, sent in a patch
