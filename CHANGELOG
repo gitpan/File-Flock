@@ -1,4 +1,6 @@
 
++ 2013/04/05 version 2013.06
+
 Added File::Flock::Forking to auto-select between File::Flock and
 File::Flock::Subprocess.
 

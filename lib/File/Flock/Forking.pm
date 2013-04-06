@@ -17,6 +17,8 @@ if ((!$Config{d_flock} && ! $ENV{FLOCK_FORKING_USE} eq 'flock')
 	require File::Flock::Subprocess;
 }
 
+1;
+
 __END__
 
 =head1 NAME
