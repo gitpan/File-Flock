@@ -6,11 +6,15 @@ Makefile.PL
 MANIFEST
 META.yml                                 Module meta-data (added by MakeMaker)
 README
+t/auto2.t
 t/auto.t
+t/flock2.t
+t/flock2.tt
 t/flock.t
 t/flock.tt
-t/forkhold.t
+t/forking2.t
 t/forking.t
+t/subprocess2.t
 t/subprocess.t
 t/wrap.tm
 META.json                                Module JSON meta-data (added by MakeMaker)

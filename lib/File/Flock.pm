@@ -3,7 +3,7 @@ package File::Flock;
 
 require Exporter;
 @ISA = qw(Exporter);
-@EXPORT = qw(lock unlock lock_rename);
+@EXPORT = qw(lock unlock lock_rename forget_locks);
 
 use Carp;
 use POSIX qw(EAGAIN EACCES EWOULDBLOCK ENOENT EEXIST O_EXCL O_CREAT O_RDWR); 
@@ -14,7 +14,7 @@ use Data::Structure::Util qw(unbless);
 use vars qw($VERSION $debug $av0debug);
 
 BEGIN	{
-	$VERSION = 2013.04;
+	$VERSION = 2013.05;
 	$debug = 0;
 	$av0debug = 0;
 }
@@ -31,13 +31,13 @@ my %rm;
 sub new_flock {
 	my ($pkg, $file, $shared, $nonblocking) = @_;
 	lock_flock($file, $shared, $nonblocking) or return undef;
-	return bless \$file, $pkg;
+	return bless [$file], $pkg;
 }
 
 sub DESTROY
 {
 	my ($this) = @_;
-	unlock_flock($$this);
+	unlock_flock($this->[0]);
 }
 
 sub lock_flock
@@ -155,7 +155,7 @@ sub unlock_flock
 
 	if (ref $file eq 'File::Flock') {
 		unbless $file; # avoid destructor later
-		$file = $$file;
+		$file = $file->[0];
 	}
 
 	croak "no lock on $file" unless exists $locks{$file};
@@ -194,8 +194,14 @@ sub unlock_flock
 
 sub lock_rename_flock
 {
+	croak "arguments to lock_rename" unless @_ == 2;
 	my ($oldfile, $newfile) = @_;
 
+	if (ref $oldfile eq 'File::Flock') {
+		my $obj = $oldfile;
+		$oldfile = $obj->[0];
+		$obj->[0] = $newfile;
+	}
 	if (exists $locks{$newfile}) {
 		unlock_flock($newfile);
 	}
@@ -218,6 +224,15 @@ sub lock_rename_flock
 	delete $rm{$oldfile};
 
 	return 1;
+}
+
+sub forget_locks_flock
+{
+	%locks = ();
+	%shared = ();
+	%pid = ();
+	%lockHandle = ();
+	%rm = ();
 }
 
 #
@@ -296,12 +311,14 @@ BEGIN {
 		*lock		= *File::Flock::Subprocess::lock;
 		*unlock		= *File::Flock::Subprocess::unlock;
 		*lock_rename	= *File::Flock::Subprocess::lock_rename;
+		*forget_locks	= *File::Flock::Subprocess::forget_locks;
 	} else {
 		*new	        = *new_flock;
 		*final_cleanup	= *final_cleanup_flock;
 		*lock		= *lock_flock;
 		*unlock		= *unlock_flock;
 		*lock_rename	= *lock_rename_flock;
+		*forget_locks	= *forget_locks_flock;
 	}
 }
 
@@ -327,9 +344,15 @@ __END__
 
  unlock($filename);
 
+ lock_rename($oldfilename, $newfilename)
+
  my $lock = new File::Flock '/somefile';
 
- lock_rename($oldfilename, $newfilename)
+ $lock->unlock();
+
+ $lock->lock_rename('/new/file');
+
+ forget_locks();
 
 =head1 DESCRIPTION
 
@@ -346,8 +369,9 @@ renamed (and thus the internal locking data that is stored based
 on the filename should be moved to a new name).  B<unlock()> the
 new name rather than the original name.
 
-Locks are released on process exit even if the process has fork()ed.
-Use POSIX::_exit() to prevent that behavior.
+Locks are released on process exit when the process that created the
+lock exits.  Subprocesses that exit do not remove locks.
+Use forget_locks() or POSIX::_exit() to prevent unlocking on process exit.
 
 =head1 SEE ALSO
 

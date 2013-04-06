@@ -14,9 +14,15 @@ SYNOPSIS
 
      unlock($filename);
 
+     lock_rename($oldfilename, $newfilename)
+
      my $lock = new File::Flock '/somefile';
 
-     lock_rename($oldfilename, $newfilename)
+     $lock->unlock();
+
+     $lock->lock_rename('/new/file');
+
+     forget_locks();
 
 DESCRIPTION
     Lock files using the flock() call. If the file to be locked does not
@@ -32,8 +38,9 @@ DESCRIPTION
     should be moved to a new name). unlock() the new name rather than the
     original name.
 
-    Locks are released on process exit even if the process has fork()ed. Use
-    POSIX::_exit() to prevent that behavior.
+    Locks are released on process exit when the process that created the
+    lock exits. Subprocesses that exit do not remove locks. Use
+    forget_locks() or POSIX::_exit() to prevent unlocking on process exit.
 
 SEE ALSO
     See File::Flock::Subprocess for a variant that uses a subproess to hold

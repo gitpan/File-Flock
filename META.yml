@@ -4,6 +4,7 @@ author:
   - 'David Muir Sharnoff <cpan@dave.sharnoff.org>'
 build_requires:
   File::Slurp: 0
+  Test::SharedFork: 0
   Time::HiRes: 0
 configure_requires:
   ExtUtils::MakeMaker: 0
@@ -21,8 +22,8 @@ no_index:
 requires:
   AnyEvent: 0
   Data::Structure::Util: 0
-  IO::Event: 0.808
+  IO::Event: 0.809
   Time::HiRes: 0
 resources:
   repository: http://github.com/muir/File-Flock
-version: 2013.04
+version: 2013.05

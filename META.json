@@ -23,6 +23,7 @@
       "build" : {
          "requires" : {
             "File::Slurp" : 0,
+            "Test::SharedFork" : 0,
             "Time::HiRes" : 0
          }
       },
@@ -35,7 +36,7 @@
          "requires" : {
             "AnyEvent" : 0,
             "Data::Structure::Util" : 0,
-            "IO::Event" : "0.808",
+            "IO::Event" : "0.809",
             "Time::HiRes" : 0
          }
       }
@@ -46,5 +47,5 @@
          "url" : "http://github.com/muir/File-Flock"
       }
    },
-   "version" : "2013.04"
+   "version" : "2013.05"
 }

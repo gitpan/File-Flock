@@ -2,7 +2,7 @@
 package File::Flock::Subprocess;
 
 @ISA = qw(Exporter);
-@EXPORT = qw(lock unlock lock_rename);
+@EXPORT = qw(lock unlock lock_rename forget_lock);
 
 # use Smart::Comments;
 use strict;
@@ -30,6 +30,8 @@ my $connections;
 my $parent_pid;
 my $timer;
 my $ioe_parent;
+my $counter = '0001';
+my %locks;
 
 # client side
 my $child;
@@ -42,13 +44,13 @@ sub new
 {
 	my ($pkg, $file, $shared, $nonblocking) = @_;
 	&lock($file, $shared, $nonblocking) or return undef;
-	return bless \$file, __PACKAGE__;
+	return bless [$file], __PACKAGE__;
 }
 
 sub DESTROY
 {
 	my ($this) = @_;
-	unlock($$this);
+	unlock($this->[0]);
 }
 
 sub encode
@@ -148,8 +150,11 @@ sub lock
 
 	$shared = $shared ? "1" : "0";
 	$nonblocking = $nonblocking ? "1" : "0";
+	my $orig_file = $file;
 	encode($file);
-	return request("LOCK $shared$nonblocking $file", $file);
+	my $r = request("LOCK $shared$nonblocking $file", $file);
+	$locks{$orig_file} = $$ if $r;
+	return $r;
 }
 
 sub unlock
@@ -158,7 +163,7 @@ sub unlock
 
 	if (ref $file eq __PACKAGE__) {
 		unbless $file; # avoid destructor later
-		$file = $$file;
+		$file = $file->[0];
 	}
 
 	update_proxy_connections();
@@ -168,31 +173,50 @@ sub unlock
 		$file = $$file;
 	}
 	croak "File $file not locked" unless $lock_pids{$file};
+	my $orig_file = $file;
 	encode($file);
 	my $r = request("UNLOCK $file", $file);
-	my $lock_pid = delete $lock_pids{$file};
+	my $lock_pid = delete $lock_pids{$orig_file};
 	if ($lock_count{$lock_pid} <= 0) {
 		delete $lock_proxies{$lock_pid};
 	}
+	delete $locks{$orig_file};
 	return $r;
 }
 
 sub lock_rename
 {
+	croak "arguments to lock_rename" unless @_ == 2;
 	my ($oldfile, $newfile) = @_;
+
+	if (ref $oldfile eq 'File::Flock::Subprocess') {
+		my $obj = $oldfile;
+		$oldfile = $obj->[0];
+		$obj->[0] = $newfile;
+	}
 
 	update_proxy_connections();
 
 	carp "File $oldfile not locked" unless $lock_pids{$oldfile};
 	carp "File $newfile already locked" if $lock_pids{$newfile};
+	my ($orig_oldfile, $orig_newfile) = ($oldfile, $newfile);
 	encode($oldfile, $newfile);
 	my $r = request("LOCK_RENAME $oldfile\t$newfile", $oldfile);
-	$lock_pids{$newfile} = delete $lock_pids{$oldfile};
+	$lock_pids{$orig_newfile} = delete $lock_pids{$orig_oldfile};
+	$locks{$orig_newfile} = delete $locks{$orig_oldfile} if exists $locks{$orig_oldfile};
 	return $r;
+}
+
+sub forget_locks
+{
+	%locks = ();
 }
 
 sub final_cleanup
 {
+	for (keys %locks) {
+		unlock($_) if $locks{$_} == $$;
+	}
 	$child->close() if defined $child;
 	undef $child;
 	undef %lock_proxies;
@@ -290,7 +314,7 @@ sub ie_connection
 {
 	my ($pkg, $ioe) = @_;
 	my $replacement = $ioe->accept();
-	$connections->add($replacement, "slave(@{[$ioe->ie_desc()]})");
+	$connections->add($replacement, "slave(@{[$ioe->ie_desc().$counter++]})");
 }
 
 # could be lock server master losing socketpair or lock server
@@ -373,13 +397,13 @@ sub ie_input
 	sub add {
 		my ($self, $ioe, $label) = @_;
 		$ioe->ie_desc($label) if $label;
-		$self->{$ioe->ie_desc()}++;;
+		die "duplicate @{[$ioe->ie_desc()]}" if ++$self->{$ioe->ie_desc()} > 1;
 		print STDERR "PROXY $$: " . join(' ', 'ADD', $ioe->ie_desc(), ':', sort keys %$self) . "\n" if $debug;
 	}
 	sub remove
 	{	
 		my ($self, $ioe) = @_;
-		die if --$self->{$ioe->ie_desc()};;
+		die $ioe unless $self->{$ioe->ie_desc()};
 		delete $self->{$ioe->ie_desc()};;
 		print STDERR "PROXY $$: " . join(' ', 'REMOVE', $ioe->ie_desc(), ':', sort keys %$self) . "\n" if $debug;
 		return scalar(keys %$self);
@@ -486,25 +510,32 @@ shared with child processes.
 
  unlock($filename);
 
+ lock_rename($oldfilename, $newfilename)
+
  my $lock = new File::Flock '/somefile';
 
- lock_rename($oldfilename, $newfilename)
+ $lock->unlock();
+
+ $lock->lock_rename('/new/file');
+
+ forget_locks();
 
 =head1 DESCRIPTION
 
 This is a wrapper around L<File::Flock> that starts a subprocess and
 does the lcoking in the subprocess with L<File::Flock>.  The purpose of
-this is to handle strange operating systems (Solaris) that do not retain
+this is to handle operating systems (eg: Solaris) that do not retain
 locks across a call to fork().
-
-This is a gross hack.  It exists because Soloaris doesn't preserve
-locks across a fork().  The implementation is a hack.
 
 The sub-process for this is created with fork() when
 File::Flock::Subprocess is compiled.  I've tried to minimize the
 side-effects calling fork() by doing calling it early and by using
 POSIX::_exit() to quit but it is still worth being aware of.  I suggest
 loading File::Flock::Subprocess early.
+
+Use L<File::Flock::Forking> to automatically detect when this is needed.
+
+Read the docs for L<File::Flock> for details of the API.
 
 =head1 ERRATA
 

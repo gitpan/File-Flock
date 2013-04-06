@@ -20,13 +20,14 @@ WriteMakefile(
 	),
 	'PREREQ_PM'	=> {
 		'Time::HiRes'	=> 0,
-		'IO::Event'	=> 0.808,
+		'IO::Event'	=> 0.809,
 		'AnyEvent'	=> 0,
 		'Data::Structure::Util' => 0,
 	},
 	'BUILD_REQUIRES' => {
 		'File::Slurp'	=> 0,
 		'Time::HiRes'	=> 0,
+		'Test::SharedFork'	=> 0,
 	},
 );
 
