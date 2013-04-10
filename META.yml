@@ -22,8 +22,8 @@ no_index:
 requires:
   AnyEvent: 0
   Data::Structure::Util: 0
-  IO::Event: 0.809
+  IO::Event: 0.812
   Time::HiRes: 0
 resources:
   repository: http://github.com/muir/File-Flock
-version: 2013.06
+version: 2013.07

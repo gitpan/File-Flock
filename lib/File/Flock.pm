@@ -14,7 +14,7 @@ use Data::Structure::Util qw(unbless);
 use vars qw($VERSION $debug $av0debug);
 
 BEGIN	{
-	$VERSION = 2013.06;
+	$VERSION = 2013.07;
 	$debug = 0;
 	$av0debug = 0;
 }

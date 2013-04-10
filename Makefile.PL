@@ -20,7 +20,7 @@ WriteMakefile(
 	),
 	'PREREQ_PM'	=> {
 		'Time::HiRes'	=> 0,
-		'IO::Event'	=> 0.809,
+		'IO::Event'	=> 0.812,
 		'AnyEvent'	=> 0,
 		'Data::Structure::Util' => 0,
 	},

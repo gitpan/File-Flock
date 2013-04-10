@@ -1,3 +1,6 @@
++ 2013/04/09 version 2013.07
+
+Require IO::Event version 0.812 to work around a FreeBSD issue.
 
 + 2013/04/05 version 2013.06
 
