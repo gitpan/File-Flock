@@ -55,7 +55,8 @@ sub DESTROY
 
 sub encode
 {
-	for my $_ (@_) {
+	local($_);
+	for $_ (@_) {
 		### assert: defined $_
 		s/\\/\\\\/g;
 		s/\n/\\n/g;
@@ -65,7 +66,8 @@ sub encode
 
 sub decode
 {
-	for my $_ (@_) {
+	local($_);
+	for $_ (@_) {
 		### assert: defined $_
 		s/\\t/\t/g;
 		s/\\n/\n/g;

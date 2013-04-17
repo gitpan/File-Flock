@@ -1,3 +1,7 @@
++ 2013/04/17 version 2013.08
+
+Removed "my $_" instances that broke older perls.
+
 + 2013/04/09 version 2013.07
 
 Require IO::Event version 0.812 to work around a FreeBSD issue.
