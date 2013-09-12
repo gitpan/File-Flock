@@ -1,3 +1,9 @@
+
++ 2013/09/11 version 2013.09
+
+Resolve un-initialized variable $ready in Subprocess.pm
+Resolve un-initialized variable isues in Forking.pm
+
 + 2013/04/17 version 2013.08
 
 Removed "my $_" instances that broke older perls.

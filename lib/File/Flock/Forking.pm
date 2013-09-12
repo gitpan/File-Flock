@@ -10,8 +10,8 @@ use Config;
 die "Import File::Flock::Forking before importing File::Flock"
 	if defined $File::Flock::VERSION;
 
-if ((!$Config{d_flock} && ! $ENV{FLOCK_FORKING_USE} eq 'flock')
-	|| $ENV{FLOCK_FORKING_USE} eq 'subprocess') 
+if ((!$Config{d_flock} && ! ($ENV{FLOCK_FORKING_USE} || '') eq 'flock')
+	|| (($ENV{FLOCK_FORKING_USE} || '') eq 'subprocess'))
 {
 	$File::Flock::Forking::SubprocessEnabled = 1;
 	require File::Flock::Subprocess;

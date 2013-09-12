@@ -443,7 +443,7 @@ BEGIN {
 	if ($child_pid) {
 		$parent->close();
 		my $ready = <$child>;
-		die unless $ready eq "ready\n";
+		die unless $ready && $ready eq "ready\n";
 		$last_pid = $$;
 
 		# We need File::Flock->new() to work.  This is a bit gross:
