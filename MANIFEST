@@ -1,20 +1,22 @@
-CHANGELOG
-lib/File/Flock/Forking.pm
+Build.PL
+Changes
 lib/File/Flock.pm
+lib/File/Flock/Forking.pm
 lib/File/Flock/Subprocess.pm
-Makefile.PL
 MANIFEST
-META.yml                                 Module meta-data (added by MakeMaker)
+MYMETA.yml
+MYMETA.json
 README
-t/auto2.t
 t/auto.t
-t/flock2.t
-t/flock2.tt
+t/auto2.t
 t/flock.t
 t/flock.tt
-t/forking2.t
+t/flock2.t
+t/flock2.tt
 t/forking.t
-t/subprocess2.t
+t/forking2.t
 t/subprocess.t
+t/subprocess2.t
 t/wrap.tm
-META.json                                Module JSON meta-data (added by MakeMaker)
+META.yml
+Makefile.PL

@@ -8,6 +8,7 @@ build_requires:
   Time::HiRes: 0
 configure_requires:
   Module::Build: 0.36
+dynamic_config: 0
 generated_by: 'Module::Build version 0.3603'
 license: unknown
 meta-spec:
@@ -33,4 +34,4 @@ requires:
   Time::HiRes: 0
 resources:
   repository: http://github.com/muir/File-Flock
-version: 2013.11
+version: 2013.10

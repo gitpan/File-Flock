@@ -1,0 +1,67 @@
+{
+   "abstract" : "Wrapper for flock() to make file locking trivial",
+   "author" : [
+      "David Muir Sharnoff <cpan@dave.sharnoff.org>"
+   ],
+   "dynamic_config" : 0,
+   "generated_by" : "Module::Build version 0.3603, CPAN::Meta::Converter version 2.112150",
+   "license" : [
+      "unknown"
+   ],
+   "meta-spec" : {
+      "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+      "version" : "2"
+   },
+   "name" : "File-Flock",
+   "prereqs" : {
+      "build" : {
+         "requires" : {
+            "ExtUtils::MakeMaker" : 0
+         }
+      },
+      "configure" : {
+         "requires" : {
+            "Module::Build" : "0.36"
+         }
+      },
+      "runtime" : {
+         "requires" : {
+            "AnyEvent" : 0,
+            "Data::Structure::Util" : 0,
+            "File::Slurp" : 0,
+            "IO::Event" : "0.812",
+            "Test::SharedFork" : 0,
+            "Time::HiRes" : 0
+         }
+      }
+   },
+   "provides" : {
+      "File::Flock" : {
+         "file" : "lib/File/Flock.pm",
+         "version" : "2013.1"
+      },
+      "File::Flock::Forking" : {
+         "file" : "lib/File/Flock/Forking.pm",
+         "version" : 0
+      },
+      "File::Flock::Subprocess" : {
+         "file" : "lib/File/Flock/Subprocess.pm",
+         "version" : 0
+      },
+      "File::Flock::Subprocess::Connections" : {
+         "file" : "lib/File/Flock/Subprocess.pm",
+         "version" : 0
+      },
+      "File::Flock::Subprocess::Master" : {
+         "file" : "lib/File/Flock/Subprocess.pm",
+         "version" : 0
+      }
+   },
+   "release_status" : "stable",
+   "resources" : {
+      "repository" : {
+         "url" : "http://github.com/muir/File-Flock"
+      }
+   },
+   "version" : "2013.1"
+}
