@@ -1,4 +1,3 @@
-
 package File::Flock::Subprocess;
 
 @ISA = qw(Exporter);
@@ -525,7 +524,7 @@ shared with child processes.
 =head1 DESCRIPTION
 
 This is a wrapper around L<File::Flock> that starts a subprocess and
-does the lcoking in the subprocess with L<File::Flock>.  The purpose of
+does the locking in the subprocess with L<File::Flock>.  The purpose of
 this is to handle operating systems (eg: Solaris) that do not retain
 locks across a call to fork().
 

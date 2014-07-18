@@ -43,7 +43,7 @@ DESCRIPTION
     forget_locks() or POSIX::_exit() to prevent unlocking on process exit.
 
 SEE ALSO
-    See File::Flock::Subprocess for a variant that uses a subproess to hold
+    See File::Flock::Subprocess for a variant that uses a subprocess to hold
     the locks so that the locks survive when the parent process forks. See
     File::Flock::Forking for a way to automatically choose between
     File::Flock and File::Flock::Subprocess.

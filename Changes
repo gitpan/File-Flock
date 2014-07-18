@@ -1,6 +1,15 @@
 Revision history for Perl module File::Flock
 
-2013.10 2013-09-16
+2014.01 2014-07-17
+
+    - Remove MYMETA.* from MANIFEST (bug #93176)
+    - Remove Makefile from git repository
+
+2013.12 2013-10-15
+
+    - Typo fixes in the documentation
+
+2013.11 2013-09-16
 
     - Switched from CHANGELOG to Changes
 
